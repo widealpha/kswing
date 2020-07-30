@@ -1,0 +1,130 @@
+这个组件主要包含四个模块
+和一个封装读写文件常用操作的小型工具包
+
+/************/
+一.数组本地保存
+
+对应localbase/arrstore
+主要包含的功能有:
+
+1.把一个数组本地化
+2.读取一个数组在本地的数据 在程序中还原此数组
+
+(支持的数组为1,2,3维的double/String/int数组)
+
+
+/*********/
+二.本地表格读写
+对应localbase/localtable
+
+操作机制是以静态接口对当前指定的本地表格对象进行
+读写操作
+
+主要包含的功能为:
+
+1.创建一个本地表格
+2.切换操作表格对象
+3.增加/删除行
+4.增加/删除列
+5.通过关键字列查找表格
+6.对查找表格后形成的结果集中的数据进行以行为单位的
+修改/删除/获取数据
+7.删除当前表格
+8.打印当前表格
+
+
+（一）在(1.创建本地表格)时 需设置表格的名称和列名
+
+如创建一个商品表格名为goods 内有属性name,id,price
+并且设置id与name为关键字 那么可以:
+LocalTable.createTable("goods", "name$", "id$", "price");
+来进行生成 列名后头的$标识其为关键字列 关键字列不唯一
+(可被用于指定为搜索条件的列)
+
+(二)只有在切换至一个表格对象后(switchToTable(String name))
+才能进行增删查改的工作
+
+(三)在增加行时 需注意输入方式:
+    假设现在在(一)中作为例举的表格中添加一行新的记录
+    其中name属性指定为 bread, id为 00114, price为 3
+    则可以采用下述方式进行操作:
+    LocalTable.addRow("name", "bread", "id", "00114", "price", "3");
+    其中 每一组数据的先后顺序可以对调 但是组内顺序不可变化 比如列名如"name"后面跟着的总是其对应的值如"bread"
+    允许只指定一部分列名下的值 未被指定的列名下的值会被设定为""
+
+(四)在检索记录时 使用的是LocalTable.queryRow(String ... conditions);
+    输入格式与(三)中增加新行的格式类似 不过需注意 只有关键字列才能被指定为搜索的条件
+    例如:
+	还是(一)中的那个表格 现在检索所有id为10086 name为melon的商品 
+	则可以按如下格式:
+		LocalTable.queryRow("id", "10086", "name", "melon");
+		或LocalTable.queryRow("name", "melon", "id", "10086");
+
+(五) 在检索记录后 会自动保存一个结果集 只有在结果集不为空的时候(即当前表格已经至少检索过一次之后)
+     1.对指定数据的更改 2.获取某一条记录的指定列数据 3.删除某一条记录的功能才可用
+     结果集内根据搜索的结果保存了多条记录 可以通过next()(切换到下一条) before()(切换到上一条) first()(切换到第一条)
+     来切换至你需要的记录上
+
+(六) 可以通过LocalTable.showTable(); 来打印当前表格信息
+
+(七) 表格只能接受字符串形式的数据 如需保存其它类型的数据(如int) 可以把其转化成字符串后再存入表格
+
+/**************/
+三.本地映射集
+   对应localbase/localmap
+	
+   （一）主要功能是在本地生成一个模拟的HashMap<String, String>, 可以通过开放的静态接口对
+具体的本地映射集进行读写和查询;依据程序内部的HashMap<String, String>对象对本地映射集进行更新
+或者是通过本地映射集生成程序内包含对应数据的HashMap对象
+    
+    (二) 操作方式与<二.本地表格>类似 可以通过指定生成路径创建一个本地映射集
+想要操作一个本地映射集的话需要先通过LocalMap.switchToMap(String pathname)切换到指定路径
+下的映射集:可以使用LocalMap.createReflect(String key, String initValue);创建新的键值对
+使用LocalMap.get(String key); 获取某个关键字的映射值， 也可以使用LocalMap.dropReflect(String key);
+来删除一个键值对;
+ 
+    (三) 通过程序内的HashMap<String, String>对象来更新本地映射集的话 可以使用LocalMap.updateLocalMap(HashMap<String, String> hashMap);
+来进行, 它会通过输入的hashMap来更新当前作为操作对象的本地映射集(添置没有的键值对， 删除多余的键值对)来使本地映射集和输入的hashMap
+保存的数据一致
+    (四）通过LocalMap.getMap(String pathname);可以通过指定路径下的本地映射集生成一个本地的HashMap<String, String>对象
+
+/**************/
+四.聊天记录储存器
+   对应localbase/chatmess
+
+   (一) 这个功能主要是用于储存图文聊天记录的
+   它是主体是ChatMessSet对象 包含了一个LinkList<MessBulb>(即关于单个聊天气泡的链表)
+而一个MessBulb下按次存储了图文信息 单个图片或文段由InfoNode保存
+它包含了<类别:说明此节点保存的是图片还是文段> <具体的数据:一个文段或图片>
+MessBulb同样包含了一个InfoNode的链表 还有对应存储<发言人>和<信息发出的日期>的域
+     
+   (二) 调用ChatMessSet对象的writeToLocal(String pathname)方法可以把此聊天信息写入对应路径的文件中
+	使用静态方法ChatMessSet.readLocalSet(String pathname);可以根据对应路径下保存聊天记录信息的文件返回一个ChatMessSet对象
+	
+   (三) 在具体的情境下 如需要通过获取本地存储的聊天信息来复原一个完整的聊天记录可以通过如下方式进行遍历:
+	
+   <code>	
+	//从对应路径为"./1145"的文件下提取聊天记录
+        ChatMessSet record1145 = readLocalSet("./1145");
+        //用于暂存单个聊天气泡
+        MessBulb bulb = null;
+        //用于暂存单个文段或图片节点
+        InfoNode node = null;
+        for(int i=0; i<record1145.getSize(); i++) {
+            bulb = record1145.getBulb(i);
+            for(int j=0; j<bulb.getSize(); j++) {
+                node = bulb.getNode(j);
+                //表示如果此节点存储的是字符串信息
+                if(node.getType() == InfoNode.STR_TYPE) {
+                    //表示对提取出来的文段作对应操作
+                    strOpr(node.getStr());
+                }
+                
+                if(node.getType() == InfoNode.IMG_TYPE) {
+                    //表示对提取出来的单个图片作对应操作
+                    imgOpr(node.getImg());
+                }
+            }
+        }
+   </code>
+   
